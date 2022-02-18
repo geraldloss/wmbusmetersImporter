@@ -43,7 +43,7 @@ Copy the sript in a directory like `/usr/local/sbin/`
 Create all the necessary directories under the working directory of wmbusmeters
 
 	.
- 	└── wmbusbeterdirectory				# The directory where wmbusmerters is writing the meter data
+ 	└── wmbusbeterdirectory		# The directory where wmbusmerters is writing the meter data
 		├── imported
 		├── process
 		└── error  
