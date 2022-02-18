@@ -36,7 +36,8 @@ Copy the sript in a directory like `/usr/local/sbin/`
 
 Create all the necessary directories under the directory where the wmbusmeters files are located
 
-wmbusbeterdirectory
+
+ wmbusbeterdirectory
 	├── imported
 	├── process
 	└── error  
