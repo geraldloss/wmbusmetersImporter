@@ -1,4 +1,4 @@
-# Bash scripts for `wmbusmeters importer into influxDb`
+# wmbusmeters importer into influxDb
 
 > This are bash scripts to install an realtime importer for [wmbusmeters][1] data
 > into [InfluxDB][2] time series database.
@@ -18,11 +18,11 @@ Copy the sript `influxImport` in a directory like `/usr/local/sbin`
 
 Configure the variables in the top of the script.
 
-Most probably you need to alter the `function formatInfluxData()` for your needs if your wmbusmeters json data has an other structure.
+Most probably you need to alter the `function formatInfluxData()`, for your needs if your wmbusmeters json data has another structure.
 Also adjust the `echo` command at the end of this function for your influxDB write command. 
 A desription of the syntax you can find [here][4]. 
 
-Please read before carefully the advices for your [schema layout][3]. 
+Please read before carefully the advices for your InfluxDB [schema layout][3]. 
 
 Test an import of a wmbusmeters file with the followning command
 
@@ -34,10 +34,10 @@ influxImport <filename>
 
 Copy the sript in a directory like `/usr/local/sbin/` 
 
-Create all the necessary directories under the directory where the wmbusmeters files are located
+Create all the necessary directories under the working directory of wmbusmeters
 
 	.
- 	└── wmbusbeterdirectory
+ 	└── wmbusbeterdirectory				# The directory where wmbusmerters is writing the meter data
 		├── imported
 		├── process
 		└── error  
@@ -75,19 +75,19 @@ systemctl daemon-reload
 Enable the service.
 
 ```
-systemctl enable wmbusmeter-import.service
+systemctl enable wmbusmeter-import
 ```
 
 Start the service
 
 ```
-systemctl start wmbusmeter-import.service
+systemctl start wmbusmeter-import
 ```
 
 Look if everything works fine.
 
 ```
-systemctl status wmbusmeter-import.service
+systemctl status wmbusmeter-import
 ```
 
 ### 2.3 configure logrotate
