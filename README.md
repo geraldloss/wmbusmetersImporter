@@ -50,7 +50,7 @@ Create all the necessary directories under the working directory of wmbusmeters
 
 Create a directory for the logs in `/var/log/influxImport/` 
 
-Make all the directorys configured in this script writeable for wmbusmeters
+Make all the directories configured in this script writeable for wmbusmeters
 
 ```
 chown wmbusmeters.wmbustertes <directory>
