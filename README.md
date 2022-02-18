@@ -36,11 +36,11 @@ Copy the sript in a directory like `/usr/local/sbin/`
 
 Create all the necessary directories under the directory where the wmbusmeters files are located
 
-
- wmbusbeterdirectory
-	├── imported
-	├── process
-	└── error  
+	.
+ 	└── wmbusbeterdirectory
+		├── imported
+		├── process
+		└── error  
 
 Create a directory for the logs in `/var/log/influxImport/` 
 
