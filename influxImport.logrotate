@@ -1,0 +1,10 @@
+# insert filename from the LOG_FILE variable in script watchNewData Example: /var/log/influxImport/influxImport 
+<filename with path> {
+  weekly
+  rotate 5
+  size 10M
+  compress
+  missingok
+  create 660 wmbusmeters wmbusmeters
+  su wmbusmeters wmbusmeters
+}

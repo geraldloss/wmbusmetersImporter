@@ -1,0 +1,14 @@
+[Unit]
+Description=Wmbusbeter Importer for influxDB
+After=network.target
+
+[Service]
+Type=simple
+User=wmbusmeters
+Group=wmbusmeters
+WorkingDirectory=/var/spool/wmbusmeter
+ExecStart=/usr/local/sbin/watchNewData /var/spool/wmbusmeter &
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

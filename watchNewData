@@ -1,0 +1,147 @@
+#!/bin/bash
+#
+#
+
+# if 'true' the results will be logged in the standard syslog
+LOG=false
+# if 'true' the results are written to stdout (Standard Out)
+VERBOSE=false
+# write the files you like to import in this comma separated list. All other files will be ignored
+ALLOWED_FILES="heat_livingroom, heat_bath"
+# the directory where all the imported data will be moved to
+IMPORTED_DIR=/var/spool/wmbusmeter/imported
+# directory where the data to be imported is located
+PROCESS_DIR=/var/spool/wmbusmeter/process
+# directory where the import data with errors will be moved to
+ERROR_DIR=/var/spool/wmbusmeter/error
+# path to the importer bash script
+INFLUX_IMPORTER=/usr/local/sbin/influxImport
+# general log file for this script. This logs can not be turned off. Configure logrotate for it
+# make it writeable for user wmbusmeters
+LOG_FILE=/var/log/influxImport/influxImport
+
+# ${1} directory to watch
+function main() {
+
+    # check parameters
+    checkOpts ${1}
+    
+    # start watching directory
+    watchDirectory ${1}
+
+}
+
+# ${1}: Value to log
+function log() {
+    # only if logging is activated
+    if ${LOG}; then
+	logger -t influxImport "${1}"
+    fi
+    # if verbose then write to console
+    if ${VERBOSE}; then
+	echo "${1}"
+    fi
+    
+    # always log into own log file
+    echo "`date` - ${1}" >> ${LOG_FILE}
+}
+
+# ${1} directory to watch
+function watchDirectory() {
+    unset IFS
+
+    inotifywait -m -e close_write ${1} |
+    while read directory operation file; do
+	
+	log "New data in file \"$(formatDirectory ${directory})${file}\" for import in infuxDB"
+	
+	# only if this is a allowed file for import
+	if [[ ${ALLOWED_FILES} =~ (^|,[[:space:]]|,)${file}($|,[[:space:]]|,) ]]; then
+	    # import new data
+	    importNewData ${directory} ${file}
+	else
+	    log "file \"${file}\" is not in the list of allowed import files. Allowed are \"${ALLOWED_FILES}\""
+	fi
+    done
+}
+
+# ${1}: Directory like: /test/imports/
+# ${2}: Filename like: meter_data.json
+function importNewData() {
+    
+    log "move file ${2} to directory \"$(formatDirectory ${PROCESS_DIR})${2}\" for processing it"
+    mv $(formatDirectory ${1})${2} $(formatDirectory ${PROCESS_DIR})${2}
+    
+    log "start import of file \"$(formatDirectory ${PROCESS_DIR})${2}\""
+    ${INFLUX_IMPORTER} $(formatDirectory ${PROCESS_DIR})${2}
+    local return=${?}
+    if [ "${return}" != "0" ]; then
+	log "error while importing file\"$(formatDirectory ${PROCESS_DIR})${2}\""
+
+
+	log "move file \"$(formatDirectory ${PROCESS_DIR})${2}\" to \"$(formatDirectory ${ERROR_DIR})${2}\""
+	transferFile $(formatDirectory ${PROCESS_DIR})${2} $(formatDirectory ${ERROR_DIR})${2}
+	rm $(formatDirectory ${PROCESS_DIR})${2}
+    else
+	log "finished import of file \"$(formatDirectory ${PROCESS_DIR})${2}\""
+
+	log "move file \"$(formatDirectory ${PROCESS_DIR})${2}\" to \"$(formatDirectory ${IMPORTED_DIR})${2}\""
+	transferFile $(formatDirectory ${PROCESS_DIR})${2} $(formatDirectory ${IMPORTED_DIR})${2}
+	rm $(formatDirectory ${PROCESS_DIR})${2}
+    fi
+
+}
+
+# ${1} source file
+# ${2} target file
+function transferFile() {
+    
+    while read line; do
+	# only if this is no empty line
+	if [ -n "${line}" ]; then
+	    # append it to target file
+	    echo "${line}" >> ${2}
+	fi
+    done < ${1}
+}
+
+# ${1} directory name
+function formatDirectory() {
+    # if ther is no / at the end
+    if [[ "${1}" == */ ]]; then
+	echo "${1}"
+    else
+	echo "${1}/"
+    fi
+}
+
+# ${1} directory to watch
+function checkOpts() {
+
+    # if there is no import file
+    if [ -z "${1}" ]; then
+        showUsage
+        exit 1
+    fi
+
+    # check for the right value in LOG
+    if [ "${LOG}" != "true" -a "${LOG}" != "false" ]; then
+	echo "The parameter LOG must be \"true\" or \"false\" it is now \"${LOG}\""
+	exit 1
+    fi
+
+    # check for the right value in VERBOSE
+    if [ "${VERBOSE}" != "true" -a "${VERBOSE}" != "false" ]; then
+	echo "The parameter VERBOSE must be \"true\" or \"false\" it is now \"${VERBOSE}\""
+	exit 1
+    fi
+}
+
+function showUsage() {
+    echo "Usage: ${0} <directory>"
+}
+
+
+
+# main starting point
+main ${1}

@@ -1,0 +1,185 @@
+#!/bin/bash
+
+TABLE=<_measurement name>
+BUCKET=<bucket>
+ORGANISATION=<organisation
+HOST=http://localhost:8086
+export INFLUX_TOKEN=''
+
+# main entry point of the script
+# {1} import filename
+function main() {
+
+    # check parameters
+    checkOpts ${1}
+    
+    # import the data file
+    importFile ${1}
+}
+
+function showUsage() {
+    echo "Usage: ${0} <importfile>"
+}
+
+# {1} import filename
+function checkOpts() {
+
+    # if there is no import file
+    if [ -z "${1}" ]; then
+	showUsage
+	exit 1
+    fi
+}
+
+# ${1} : "Name":"data"
+function stripValue() {
+    dataValue=${1}
+
+    # if there is " at the beginning
+    if [ "${dataValue:0:1}" == "\"" ]; then
+        # delete " at the beginning
+        dataValue=${dataValue:1}
+    fi
+
+    local len=$((${#dataValue}-1))
+
+    # if there is a " at the end
+    if [ "${dataValue:${len}}" == "\"" ]; then
+        # delete  at the end
+        dataValue=${dataValue:0:${len}}
+    fi
+
+    echo "${dataValue}"
+}
+
+function formatInfluxData() {
+
+    # delete curly brackets at begin and end
+    importLine=${1#\{}
+    importLine=${importLine%\}}
+
+    # split string at every comma
+    IFS=',' read -ra rawDataArray <<< "${importLine}"
+
+    local arrayLength=${#rawDataArray}
+
+    # for every "name":"data" pair in the array
+    #for((x=0; ${x}<${arrayLength}; x++)) do
+    for dataTupel in "${rawDataArray[@]}"; do
+
+        # strip name value
+        nameValue=$(stripValue ${dataTupel%\"\:*})
+
+        # strip data value
+        dataValue=$(stripValue ${dataTupel#*\"\:})
+		
+		# here you can add additional values from the wmbusmeters json string in the case statement
+		
+        # create the influx values
+        case ${nameValue} in
+            media)
+                influxMedia="${nameValue}=${dataValue}"
+                ;;
+            meter)
+                influxMeter="${nameValue}=${dataValue}"
+                ;;
+            name)
+                influxName="${nameValue}=${dataValue}"
+                ;;
+            id)
+                influxId="${nameValue}=${dataValue}"
+                ;;
+            current_hca)
+                influxCurrentHca="currentHca=${dataValue}"
+                ;;
+            current_date)
+                influxCurrentDate="currentDate=$(convertTimestamp ${dataValue})"
+                ;;
+            previous_hca)
+                influxPreviousHca="previousHca=${dataValue}"
+                ;;
+            previous_date)
+                influxPreviousDate="previousDate=$(convertTimestamp ${dataValue})"
+                ;;
+            temp_room_c)
+                influxTempRoom="tempRoom=${dataValue}"
+                ;;
+            temp_radiator_c)
+                influxTempRadiator="tempRadiator=${dataValue}"
+                ;;
+            timestamp)
+                influxTimestamp=$(convertTimestamp ${dataValue})
+				influxTimestampTag="timestampTag=${dataValue}"
+				influxTimestampField="timestampField=${influxTimestamp}"
+                ;;
+            device)
+                influxDevice="${nameValue}=${dataValue}"
+                ;;
+            rssi_dbm)
+                influxRssiDbm="rssiDbm=${dataValue}"
+                ;;
+            \*)
+                echo "Name Value: \"${nameValue}\" not in case"
+        esac
+    done
+	
+	# adjust the influx data here. Don't put any tag with to many different values into the string
+	# for details look at the influxDb docs https://docs.influxdata.com/influxdb/v2.1/write-data/developer-tools/influx-cli/
+	# influx write -o ORGANISATION -b BUCKET -host ${HOST} <define only this data string here in the echo statement>
+	
+    #echo "${TABLE},${influxMedia},${influxMeter},${influxName},${influxId},${influxDevice} ${influxCurrentHca},${influxCurrentDate},${influxPreviousHca},${influxPreviousDate},${influxTempRoom},${influxTempRadiator},${influxRssiDbm},${influxTimestampField} ${influxTimestamp}"
+    echo "${TABLE},${influxName},${influxId} ${influxCurrentHca},${influxCurrentDate},${influxPreviousHca},${influxPreviousDate},${influxTempRoom},${influxTempRadiator},${influxRssiDbm},${influxTimestampField} ${influxTimestamp}"
+}
+
+# ${1}: Date in format 2022-02-16T17:11:58Z
+function convertTimestamp() {
+    # format date like 2021/12/31 15:07:23
+    dateFormated="${1:0:4}/${1:5:2}/${1:8:2} ${1:11:8} UTC"
+    
+    # return timestamp in seconds
+    echo "`date -d\"${dateFormated}\" \"+%s\"`"
+}
+
+# ${1}: Data to write into influx bucket
+function writeDataToInfuxDb() {
+    # time precision seconds(s) nanoseconds(ns)
+    influx write -o ${ORGANISATION} -b ${BUCKET} --skip-verify -host ${HOST} --precision s "${1}"
+    return ${?}
+}
+
+# {1} import filename
+function importFile() {
+    
+    # need always an empty line at the end
+    echo "" >> ${1}    
+
+    # read file line by line
+    while read line; do
+	
+	# skip empty lines
+	[ -z "${line}" ] && continue
+	
+	# convert date into inFlux format
+	data=$(formatInfluxData "${line}")
+	
+	#echo "Influx Data: ${data}"
+	
+	# write data line into influxDb
+	writeDataToInfuxDb "${data}"
+	
+	return=${?}
+	if [ "${return}" != "0" ]; then
+	    return ${return}
+	fi
+    done < ${1}
+}
+
+# main entry point of the script
+main ${1}
+
+return=${?}
+if [ "${return}" != "0" ]; then
+    exit ${return}
+else
+    exit 0
+fi
