@@ -32,6 +32,12 @@ influxImport <filename>
 
 ### 2.2 Installation of the watchNewData script
 
+For this script you need `inotifywait`. Therefor you need to install the `inotify-tools`.
+
+```
+apt install inotify-tools
+```
+
 Copy the sript in a directory like `/usr/local/sbin/` 
 
 Create all the necessary directories under the working directory of wmbusmeters
