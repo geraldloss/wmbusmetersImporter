@@ -79,6 +79,7 @@ function formatInfluxData() {
         case ${nameValue} in
             media)
                 influxMedia="${nameValue}=${dataValue}"
+                mediaIndicator="${dataValue}"
                 ;;
             meter)
                 influxMeter="${nameValue}=${dataValue}"
@@ -109,8 +110,8 @@ function formatInfluxData() {
                 ;;
             timestamp)
                 influxTimestamp=$(convertTimestamp ${dataValue})
-				influxTimestampTag="timestampTag=${dataValue}"
-				influxTimestampField="timestampField=${influxTimestamp}"
+                influxTimestampTag="timestampTag=${dataValue}"
+                influxTimestampField="timestampField=${influxTimestamp}"
                 ;;
             device)
                 influxDevice="${nameValue}=${dataValue}"
@@ -118,17 +119,44 @@ function formatInfluxData() {
             rssi_dbm)
                 influxRssiDbm="rssiDbm=${dataValue}"
                 ;;
+            total_m3)
+                influxTotalM3="${nameValue}=${dataValue}"
+                ;;
+            target_m3)
+                influxTargetM3="${nameValue}=${dataValue}"
+                ;;
             \*)
                 echo "Name Value: \"${nameValue}\" not in case"
         esac
+
     done
 	
 	# adjust the influx data here. Don't put any tag with to many different values into the string
 	# for details look at the influxDb docs https://docs.influxdata.com/influxdb/v2.1/write-data/developer-tools/influx-cli/
 	# influx write -o ORGANISATION -b BUCKET -host ${HOST} <define only this data string here in the echo statement>
+	# for example:
+	# heaterSensors,name=livingroom,id=1223455 currentHca=19,currentDate=1645581600,previousHca=62,previousDate=1640916000,tempRoom=18.75,tempRadiator=18.81,rssiDbm=133,timestampField=1645613596 1645613596
 	
-    #echo "${TABLE},${influxMedia},${influxMeter},${influxName},${influxId},${influxDevice} ${influxCurrentHca},${influxCurrentDate},${influxPreviousHca},${influxPreviousDate},${influxTempRoom},${influxTempRadiator},${influxRssiDbm},${influxTimestampField} ${influxTimestamp}"
-    echo "${TABLE},${influxName},${influxId} ${influxCurrentHca},${influxCurrentDate},${influxPreviousHca},${influxPreviousDate},${influxTempRoom},${influxTempRadiator},${influxRssiDbm},${influxTimestampField} ${influxTimestamp}"
+    case "${mediaIndicator}" in
+
+        "warm water")
+            echo "${TABLE_WATER},${influxName},${influxId} ${influxTargetM3},${influxTotalM3} ${influxTimestamp}"
+            ;;
+        "cold water")
+            echo "${TABLE_WATER},${influxName},${influxId} ${influxTargetM3},${influxTotalM3} ${influxTimestamp}"
+            ;;
+        "heat cost allocator")
+            echo "${TABLE_HEATER},${influxName},${influxId} ${influxCurrentHca},${influxCurrentDate},${influxPreviousHca},${influxPreviousDate},${influxTempRoom},${influxTempRadiator},${influ
+            ;;
+        "smoke detector")
+            echo "not supported"
+            ;;
+        "Unknown")
+            echo "not supported"
+            ;;
+        \*)
+            echo "Unknown media type: \"${mediaIndicator}\""
+    esac
 }
 
 # ${1}: Date in format 2022-02-16T17:11:58Z
